@@ -1,5 +1,4 @@
-// src/components/CalendarView.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { DiaPlanificado, PlanificacionSemanal } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;

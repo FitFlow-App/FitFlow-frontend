@@ -6,14 +6,16 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 interface WeeklyPlannerProps {
   token: string;
   userId: number;
+  onPlanificacionChange?: () => void; // Callback para notificar cambios
 }
 
-export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
+export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: WeeklyPlannerProps) {
   const [planificaciones, setPlanificaciones] = useState<PlanificacionSemanal[]>([]);
   const [planificacionActiva, setPlanificacionActiva] = useState<PlanificacionSemanal | null>(null);
   const [rutinas, setRutinas] = useState<Rutina[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPlanificacionForm, setShowPlanificacionForm] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -48,6 +50,36 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleActivarPlanificacion = async (planificacionId: number) => {
+    setIsActivating(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/planificaciones/${planificacionId}/activate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ usuarioId: userId }),
+      });
+
+      if (response.ok) {
+        // Recargar los datos para reflejar el cambio
+        await fetchData();
+        // Notificar al componente padre (si existe)
+        if (onPlanificacionChange) {
+          onPlanificacionChange();
+        }
+      } else {
+        throw new Error('Error al activar la planificación');
+      }
+    } catch (error) {
+      console.error('Error activating planificación:', error);
+      alert('Error al activar la planificación');
+    } finally {
+      setIsActivating(false);
+    }
+  };
 
   const diasSemana = [
     'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
@@ -99,25 +131,6 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
     }
   };
 
-  const handleActivarPlanificacion = async (planificacionId: number) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/planificaciones/${planificacionId}/activate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ usuarioId: userId }),
-      });
-
-      if (response.ok) {
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Error activating planificación:', error);
-    }
-  };
-
   if (isLoading) return <div className="text-center p-8">Cargando planificación...</div>;
 
   return (
@@ -127,9 +140,11 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
         <div className="flex gap-2">
           <select
             value={planificacionActiva?.id || ''}
-            onChange={(e) => {
-              const planificacion = planificaciones.find(p => p.id === parseInt(e.target.value));
-              if (planificacion) setPlanificacionActiva(planificacion);
+            onChange={async (e) => {
+              const planificacionId = parseInt(e.target.value);
+              if (planificacionId) {
+                await handleActivarPlanificacion(planificacionId);
+              }
             }}
             className="bg-gray-700 text-white px-3 py-2 rounded"
           >
@@ -161,7 +176,7 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
           {diasSemana.map((dia, index) => {
             const diaNumero = index + 1;
             const diaPlanificado = planificacionActiva.dias.find(d => d.diaSemana === diaNumero);
-            
+
             return (
               <div key={dia} className="bg-gray-700 p-4 rounded-lg">
                 <h3 className="font-semibold mb-3">{dia}</h3>
@@ -200,9 +215,10 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
                 <span>{planificacion.nombre}</span>
                 <button
                   onClick={() => handleActivarPlanificacion(planificacion.id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                  disabled={isActivating}
+                  className="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:bg-gray-600"
                 >
-                  Activar
+                  {isActivating ? 'Activando...' : 'Activar'}
                 </button>
               </div>
             ))}
@@ -213,8 +229,8 @@ export default function WeeklyPlanner({ token, userId }: WeeklyPlannerProps) {
   );
 }
 
-function PlanificacionForm({ onCancel, onSubmit }: { 
-  onCancel: () => void; 
+function PlanificacionForm({ onCancel, onSubmit }: {
+  onCancel: () => void;
   onSubmit: (nombre: string, numero: number) => void;
 }) {
   const [nombre, setNombre] = useState('');
@@ -247,8 +263,8 @@ function PlanificacionForm({ onCancel, onSubmit }: {
             <button onClick={onCancel} className="bg-gray-600 px-4 py-2 rounded">
               Cancelar
             </button>
-            <button 
-              onClick={() => onSubmit(nombre, numero)} 
+            <button
+              onClick={() => onSubmit(nombre, numero)}
               className="bg-indigo-600 px-4 py-2 rounded"
             >
               Crear

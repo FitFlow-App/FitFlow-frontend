@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Rutina, RutinaEjercicio } from '../types';
 import RoutineForm from './RoutineForm.tsx';
 import ExerciseForm from './ExerciseForm.tsx';
@@ -22,6 +22,8 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
   const [exerciseToEdit, setExerciseToEdit] = useState<RutinaEjercicio | null>(
     null
   );
+
+  const [refreshPlanificacion] = useState(0);
 
   const fetchRutinasData = useCallback(
     async (keepSelectionId: number | null = null) => {
@@ -132,57 +134,56 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
   };
 
   function WeeklyOverview({ token, userId }: { token: string; userId?: number | null }) {
-  const [planificacionActiva, setPlanificacionActiva] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+    const [planificacionActiva, setPlanificacionActiva] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPlanificacionActiva();
-  }, [token, userId]);
+    useEffect(() => {
+      const fetchPlanificacionActiva = async () => {
+        try {
+          const response = await fetch(`${API_BASE_URL}/planificaciones/usuario/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (response.ok) {
+            const planificaciones = await response.json();
+            const activa = planificaciones.find((p: any) => p.activa);
+            setPlanificacionActiva(activa);
+          }
+        } catch (error) {
+          console.error('Error fetching planificación:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchPlanificacionActiva();
+    }, [token, userId]);
 
-  const fetchPlanificacionActiva = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/planificaciones/usuario/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const planificaciones = await response.json();
-        const activa = planificaciones.find((p: any) => p.activa);
-        setPlanificacionActiva(activa);
-      }
-    } catch (error) {
-      console.error('Error fetching planificación:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    if (isLoading) return <div>Cargando planificación...</div>;
+    if (!planificacionActiva) return <div>No hay planificación activa</div>;
 
-  if (isLoading) return <div>Cargando planificación...</div>;
-  if (!planificacionActiva) return <div>No hay planificación activa</div>;
+    const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-  const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return (
+      <div className="grid grid-cols-7 gap-2">
+        {diasSemana.map((dia, index) => {
+          const diaNumero = index + 1;
+          const diaPlanificado = planificacionActiva.dias.find((d: any) => d.diaSemana === diaNumero);
 
-  return (
-    <div className="grid grid-cols-7 gap-2">
-      {diasSemana.map((dia, index) => {
-        const diaNumero = index + 1;
-        const diaPlanificado = planificacionActiva.dias.find((d: any) => d.diaSemana === diaNumero);
-        
-        return (
-          <div key={dia} className="text-center p-2 bg-gray-700 rounded">
-            <div className="font-semibold">{dia}</div>
-            {diaPlanificado ? (
-              <div className="text-sm text-indigo-300 mt-1">
-                {diaPlanificado.rutina.nombre}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-400 mt-1">-</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+          return (
+            <div key={dia} className="text-center p-2 bg-gray-700 rounded">
+              <div className="font-semibold">{dia}</div>
+              {diaPlanificado ? (
+                <div className="text-sm text-indigo-300 mt-1">
+                  {diaPlanificado.rutina.nombre}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400 mt-1">-</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -225,15 +226,16 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
                 + Nueva
               </button>
             </div>
-        <div className="space-y-6">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">Planificación Semanal Activa</h2>
-          <WeeklyOverview 
-            token={token} 
-            userId={userId}
-          />
-        </div>
-        </div>
+            <div className="space-y-6">
+              <div className="bg-gray-800 p-4 rounded-lg">
+                <h2 className="text-xl font-semibold mb-4">Planificación Semanal Activa</h2>
+                <WeeklyOverview
+                  token={token}
+                  userId={userId}
+                  key={refreshPlanificacion}
+                />
+              </div>
+            </div>
             <ul className="space-y-2">
               {rutinas.map((rutina) => (
                 <li
@@ -242,11 +244,10 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
                 >
                   <button
                     onClick={() => setSelectedRutina(rutina)}
-                    className={`w-full text-left p-3 rounded-md transition ${
-                      selectedRutina?.id === rutina.id
-                        ? 'bg-indigo-600'
-                        : 'bg-transparent'
-                    }`}
+                    className={`w-full text-left p-3 rounded-md transition ${selectedRutina?.id === rutina.id
+                      ? 'bg-indigo-600'
+                      : 'bg-transparent'
+                      }`}
                   >
                     {rutina.nombre}
                   </button>
