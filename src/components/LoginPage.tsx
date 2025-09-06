@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -12,41 +13,45 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError('');
 
-    try {
-      // Usamos la llamada fetch real con la URL definida arriba
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+  try {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Error al iniciar sesión.');
-      }
-
-      onLoginSuccess(data.token);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al iniciar sesión.');
     }
-  };
+
+    // Guardar userId en localStorage además del token
+    if (data.userId) {
+      localStorage.setItem('userId', data.userId.toString());
+    }
+    
+    onLoginSuccess(data.token);
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-900">
       <div className="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-2xl shadow-2xl">
         <img
-          src="/logoFitFlow-2 (2).png"
-          className="w-80 mx-auto"
+          src="/logoFitFlow-1.png"
+          className="w-80 mx-auto rounded-2xl"
           alt="Logo de FitFlow"
         />
         <h6 className="text-1xl font-bold text-center text-indigo-400">

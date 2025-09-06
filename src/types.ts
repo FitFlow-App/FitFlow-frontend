@@ -1,5 +1,4 @@
-// Este archivo centraliza todas las "formas" de nuestros datos.
-
+// src/types.ts
 export interface EjercicioDetallado {
   id: number;
   nombre: string;
@@ -19,5 +18,27 @@ export interface Rutina {
   id: number;
   nombre: string;
   descripcion: string | null;
+  usuarioId: number;
   ejercicios: RutinaEjercicio[];
+  diasPlanificados: DiaPlanificado[];
+}
+
+export interface DiaPlanificado {
+  id: number;
+  nombre: string;
+  diaSemana: number;
+  planificacionId: number;
+  rutinaId: number;
+  rutina: Rutina;
+  completado: boolean;
+  fecha: Date | null;
+}
+
+export interface PlanificacionSemanal {
+  id: number;
+  nombre: string;
+  numero: number;
+  usuarioId: number;
+  dias: DiaPlanificado[];
+  activa: boolean;
 }

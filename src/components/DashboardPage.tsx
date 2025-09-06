@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import type { Rutina, RutinaEjercicio } from '../types';
 import RoutineForm from './RoutineForm.tsx';
@@ -7,9 +8,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface DashboardPageProps {
   token: string;
+  userId?: number | null;
 }
-
-export default function DashboardPage({ token }: DashboardPageProps) {
+export default function DashboardPage({ token, userId }: DashboardPageProps) {
   const [rutinas, setRutinas] = useState<Rutina[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +131,59 @@ export default function DashboardPage({ token }: DashboardPageProps) {
     }
   };
 
+  function WeeklyOverview({ token, userId }: { token: string; userId?: number | null }) {
+  const [planificacionActiva, setPlanificacionActiva] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlanificacionActiva();
+  }, [token, userId]);
+
+  const fetchPlanificacionActiva = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/planificaciones/usuario/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const planificaciones = await response.json();
+        const activa = planificaciones.find((p: any) => p.activa);
+        setPlanificacionActiva(activa);
+      }
+    } catch (error) {
+      console.error('Error fetching planificación:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) return <div>Cargando planificación...</div>;
+  if (!planificacionActiva) return <div>No hay planificación activa</div>;
+
+  const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  return (
+    <div className="grid grid-cols-7 gap-2">
+      {diasSemana.map((dia, index) => {
+        const diaNumero = index + 1;
+        const diaPlanificado = planificacionActiva.dias.find((d: any) => d.diaSemana === diaNumero);
+        
+        return (
+          <div key={dia} className="text-center p-2 bg-gray-700 rounded">
+            <div className="font-semibold">{dia}</div>
+            {diaPlanificado ? (
+              <div className="text-sm text-indigo-300 mt-1">
+                {diaPlanificado.rutina.nombre}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400 mt-1">-</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
   return (
     <>
       {isManagingRoutine && (
@@ -171,6 +225,15 @@ export default function DashboardPage({ token }: DashboardPageProps) {
                 + Nueva
               </button>
             </div>
+        <div className="space-y-6">
+        <div className="bg-gray-800 p-4 rounded-lg">
+          <h2 className="text-xl font-semibold mb-4">Planificación Semanal Activa</h2>
+          <WeeklyOverview 
+            token={token} 
+            userId={userId}
+          />
+        </div>
+        </div>
             <ul className="space-y-2">
               {rutinas.map((rutina) => (
                 <li
