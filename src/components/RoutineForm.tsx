@@ -43,9 +43,13 @@ export default function RoutineForm({
 
     const method = isEditing ? 'PUT' : 'POST';
 
+    // Asume que el usuarioId está disponible en el token o lo recibes como prop
+    // Por ejemplo, si lo recibes como prop, añade usuarioId a RoutineFormProps y úsalo aquí
+    const usuarioId = rutinaToEdit?.usuarioId || 1; // Reemplaza 1 por el valor correcto o pásalo como prop
+
     const body = isEditing
       ? { nombre, descripcion } // Para editar, solo actualizamos estos campos
-      : { nombre, descripcion, usuarioId: 1 }; // Para crear, necesitamos el usuarioId (temporal)
+      : { nombre, descripcion, usuarioId }; // Para crear, necesitamos el usuarioId (temporal)
 
     try {
       const response = await fetch(url, {

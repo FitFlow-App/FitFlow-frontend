@@ -226,7 +226,7 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
                 + Nueva
               </button>
             </div>
-            <div className="space-y-6">
+            {/* <div className="space-y-6">
               <div className="bg-gray-800 p-4 rounded-lg">
                 <h2 className="text-xl font-semibold mb-4">Planificación Semanal Activa</h2>
                 <WeeklyOverview
@@ -235,7 +235,7 @@ export default function DashboardPage({ token, userId }: DashboardPageProps) {
                   key={refreshPlanificacion}
                 />
               </div>
-            </div>
+            </div> */}
             <ul className="space-y-2">
               {rutinas.map((rutina) => (
                 <li
