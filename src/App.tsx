@@ -4,7 +4,16 @@ import LoginPage from './components/LoginPage.tsx';
 import DashboardPage from './components/DashboardPage.tsx';
 import ExerciseListPage from './components/ExerciseListPage.tsx';
 import WeeklyPlanner from './components/WeeklyPlanner.tsx';
-import CalendarView from './components/CalendarView.tsx'; // Añadir esta importación
+import CalendarView from './components/CalendarView.tsx';
+
+// Importar los iconos de Heroicons
+import {
+  HomeIcon,            // Para 'Mis Rutinas' (Dashboard)
+  BookOpenIcon,        // Para 'Biblioteca de Ejercicios'
+  CalendarDaysIcon,    // Para 'Planificador Semanal'
+  CalendarIcon,        // Para 'Calendario'
+  ArrowRightOnRectangleIcon // Para 'Cerrar Sesión'
+} from '@heroicons/react/24/outline'; // Puedes usar '24/solid' para iconos rellenos
 
 export default function App() {
   const [token, setToken] = useState<string | null>(
@@ -48,62 +57,76 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
-      <nav className="bg-gray-800 p-4 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+      <nav className="bg-gray-800 p-4 flex flex-wrap items-center justify-between gap-2 sm:gap-4 sm:flex-nowrap">
+        <div className="flex items-center space-x-2 sm:space-x-4">
+          {/* Botón Mis Rutinas con Icono */}
           <button
             onClick={() => setView('dashboard')}
-            className={`px-3 py-2 rounded-md text-sm font-medium ${
-              view === 'dashboard'
+            className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-1
+              ${view === 'dashboard'
                 ? 'bg-indigo-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
-            }`}
+              }`}
           >
-            Mis Rutinas
+            <HomeIcon className="h-5 w-5" /> {/* Icono */}
+            <span className="hidden sm:inline">Mis Rutinas</span> {/* Texto visible en pantallas grandes */}
           </button>
+
+          {/* Botón Biblioteca de Ejercicios con Icono */}
           <button
             onClick={() => setView('exercises')}
-            className={`px-3 py-2 rounded-md text-sm font-medium ${
-              view === 'exercises'
+            className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-1
+              ${view === 'exercises'
                 ? 'bg-indigo-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
-            }`}
+              }`}
           >
-            Biblioteca de Ejercicios
+            <BookOpenIcon className="h-5 w-5" /> {/* Icono */}
+            <span className="hidden sm:inline">Biblioteca de Ejercicios</span>
           </button>
+
+          {/* Botón Planificador Semanal con Icono */}
           <button
             onClick={() => setView('planner')}
-            className={`px-3 py-2 rounded-md text-sm font-medium ${
-              view === 'planner'
+            className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-1
+              ${view === 'planner'
                 ? 'bg-indigo-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
-            }`}
+              }`}
           >
-            Planificador Semanal
+            <CalendarDaysIcon className="h-5 w-5" /> {/* Icono */}
+            <span className="hidden sm:inline">Planificador Semanal</span>
           </button>
+
+          {/* Botón Calendario con Icono */}
           <button
             onClick={() => setView('calendar')}
-            className={`px-3 py-2 rounded-md text-sm font-medium ${
-              view === 'calendar'
+            className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-1
+              ${view === 'calendar'
                 ? 'bg-indigo-600 text-white'
                 : 'text-gray-300 hover:bg-gray-700'
-            }`}
+              }`}
           >
-            Calendario
+            <CalendarIcon className="h-5 w-5" /> {/* Icono */}
+            <span className="hidden sm:inline">Calendario</span>
           </button>
         </div>
+
+        {/* Botón Cerrar Sesión con Icono */}
         <button
           onClick={handleLogout}
-          className="px-4 py-2 text-sm font-semibold bg-red-600 rounded-md hover:bg-red-700 transition"
+          className="px-4 py-2 text-sm font-semibold bg-red-600 rounded-md hover:bg-red-700 transition flex items-center space-x-1"
         >
-          Cerrar Sesión
+          <ArrowRightOnRectangleIcon className="h-5 w-5" /> {/* Icono */}
+          <span className="hidden sm:inline">Cerrar Sesión</span>
         </button>
       </nav>
 
-      <main className="p-4">
+      <main className="p-4 max-w-7xl mx-auto">
         {view === 'dashboard' && <DashboardPage token={token} userId={userId} />}
         {view === 'exercises' && <ExerciseListPage token={token} />}
         {view === 'planner' && userId && <WeeklyPlanner token={token} userId={userId} />}
-        {view === 'calendar' && userId && <CalendarView token={token} userId={userId} />} {/* Añadir esta línea */}
+        {view === 'calendar' && userId && <CalendarView token={token} userId={userId} />}
       </main>
     </div>
   );

@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 interface WeeklyPlannerProps {
   token: string;
   userId: number;
-  onPlanificacionChange?: () => void; // Callback para notificar cambios
+  onPlanificacionChange?: () => void;
 }
 
 export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: WeeklyPlannerProps) {
@@ -64,9 +64,7 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
       });
 
       if (response.ok) {
-        // Recargar los datos para reflejar el cambio
         await fetchData();
-        // Notificar al componente padre (si existe)
         if (onPlanificacionChange) {
           onPlanificacionChange();
         }
@@ -135,9 +133,9 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-y-4">
         <h2 className="text-2xl font-bold">Planificación Semanal</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <select
             value={planificacionActiva?.id || ''}
             onChange={async (e) => {
@@ -146,7 +144,7 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
                 await handleActivarPlanificacion(planificacionId);
               }
             }}
-            className="bg-gray-700 text-white px-3 py-2 rounded"
+            className="bg-gray-700 text-white px-3 py-2 rounded w-full sm:w-auto"
           >
             <option value="">Seleccionar planificación</option>
             {planificaciones.map(p => (
@@ -157,7 +155,7 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
           </select>
           <button
             onClick={() => setShowPlanificacionForm(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 w-full sm:w-auto"
           >
             Nueva Planificación
           </button>
@@ -172,7 +170,7 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
       )}
 
       {planificacionActiva && (
-        <div className="grid grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
           {diasSemana.map((dia, index) => {
             const diaNumero = index + 1;
             const diaPlanificado = planificacionActiva.dias.find(d => d.diaSemana === diaNumero);
@@ -183,7 +181,7 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
                 {diaPlanificado ? (
                   <div>
                     <p className="text-indigo-300">{diaPlanificado.rutina.nombre}</p>
-                    <button className="text-sm text-red-400 mt-2">
+                    <button className="text-sm text-red-400 mt-2 hover:underline">
                       Cambiar
                     </button>
                   </div>
@@ -207,16 +205,16 @@ export default function WeeklyPlanner({ token, userId, onPlanificacionChange }: 
       )}
 
       {!planificacionActiva && planificaciones.length > 0 && (
-        <div className="text-center p-8">
+        <div className="text-center p-8 col-span-full">
           <p className="text-gray-400 mb-4">Selecciona o activa una planificación</p>
           <div className="space-y-2">
             {planificaciones.map(planificacion => (
-              <div key={planificacion.id} className="flex justify-between items-center bg-gray-700 p-3 rounded">
-                <span>{planificacion.nombre}</span>
+              <div key={planificacion.id} className="flex flex-col sm:flex-row justify-between items-center bg-gray-700 p-3 rounded">
+                <span className="mb-2 sm:mb-0">{planificacion.nombre}</span>
                 <button
                   onClick={() => handleActivarPlanificacion(planificacion.id)}
                   disabled={isActivating}
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:bg-gray-600"
+                  className="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:bg-gray-600 w-full sm:w-auto"
                 >
                   {isActivating ? 'Activando...' : 'Activar'}
                 </button>
@@ -237,8 +235,8 @@ function PlanificacionForm({ onCancel, onSubmit }: {
   const [numero, setNumero] = useState(1);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-gray-800 p-6 rounded-lg">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 p-6 rounded-lg w-full max-w-sm">
         <h3 className="text-xl font-bold mb-4">Nueva Planificación</h3>
         <div className="space-y-3">
           <div>
@@ -260,12 +258,12 @@ function PlanificacionForm({ onCancel, onSubmit }: {
             />
           </div>
           <div className="flex justify-end gap-2 pt-3">
-            <button onClick={onCancel} className="bg-gray-600 px-4 py-2 rounded">
+            <button onClick={onCancel} className="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500">
               Cancelar
             </button>
             <button
               onClick={() => onSubmit(nombre, numero)}
-              className="bg-indigo-600 px-4 py-2 rounded"
+              className="bg-indigo-600 px-4 py-2 rounded hover:bg-indigo-700"
             >
               Crear
             </button>
