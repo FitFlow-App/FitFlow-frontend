@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Rutina, RutinaEjercicio } from '../types';
 import ExerciseForm from './ExerciseForm.tsx';
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { EjercicioDetallado } from '../types';
 import ExerciseCRUDForm from './ExerciseCRUDform';
 
@@ -14,7 +14,8 @@ export default function ExerciseListPage({ token }: ExerciseListPageProps) {
   const [error, setError] = useState<string | null>(null);
 
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [exerciseToEdit, setExerciseToEdit] = useState<EjercicioDetallado | null>(null);
+  const [exerciseToEdit, setExerciseToEdit] =
+    useState<EjercicioDetallado | null>(null);
 
   const fetchEjercicios = useCallback(async () => {
     setIsLoading(true);

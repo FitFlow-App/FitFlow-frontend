@@ -64,7 +64,7 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
   const [hoveredDia, setHoveredDia] = useState<DiaPlanificado | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 
-  const diasSemanaNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  // const diasSemanaNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   const diasSemanaCorta = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   const sortedPlanificaciones = [...planificaciones].sort((a, b) => a.numero - b.numero);
