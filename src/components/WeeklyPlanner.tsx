@@ -1,8 +1,7 @@
 // src/components/WeeklyPlanner.tsx
 import { useState, useEffect } from 'react';
 import type { PlanificacionSemanal, Rutina } from '../types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import apiClient from '../api/axiosConfig'; // 1. IMPORTAR apiClient
 
 interface WeeklyPlannerProps {
   token: string;
@@ -25,39 +24,34 @@ export default function WeeklyPlanner({
     const fetchRutinas = async () => {
       try {
         setIsLoadingRutinas(true);
-        const response = await fetch(`${API_BASE_URL}/routines`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const rutinasData = await response.json();
-          setRutinas(rutinasData);
-        }
+        // MODIFICADO: Usar apiClient
+        const response = await apiClient.get('/routines');
+        setRutinas(response.data as Rutina[]);
       } catch (error) {
-        console.error('Error fetching rutinas:', error);
+        if ((error as any).response?.status !== 401) {
+          console.error('Error fetching rutinas:', error);
+        }
       } finally {
         setIsLoadingRutinas(false);
       }
     };
     fetchRutinas();
-  }, [token]);
+  }, []);
 
   const handleCrearPlanificacion = async (nombre: string, numero: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/planificaciones`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ nombre, numero, usuarioId: userId }),
+      // MODIFICADO: Usar apiClient
+      await apiClient.post('/planificaciones', {
+        nombre,
+        numero,
+        usuarioId: userId,
       });
-
-      if (response.ok) {
-        setShowPlanificacionForm(false);
-        onPlanificacionChange();
-      }
+      setShowPlanificacionForm(false);
+      onPlanificacionChange();
     } catch (error) {
-      console.error('Error creating planificación:', error);
+      if ((error as any).response?.status !== 401) {
+        console.error('Error creating planificación:', error);
+      }
     }
   };
 
@@ -67,62 +61,36 @@ export default function WeeklyPlanner({
     rutinaId: number
   ) => {
     try {
-      // Intentar actualizar si ya existe una asignación para ese día y planificación
       const planificacion = planificaciones.find(
         (p) => p.id === planificacionId
       );
       const diaPlanificadoExistente = planificacion?.dias.find(
         (d) => d.diaSemana === diaSemana
       );
+      const rutinaNombre = rutinas.find((r) => r.id === rutinaId)?.nombre || '';
+      const body = {
+        nombre: `${diasSemana[diaSemana - 1]} - ${rutinaNombre}`,
+        diaSemana,
+        planificacionId,
+        rutinaId,
+      };
 
-      let response;
       if (diaPlanificadoExistente) {
-        // Lógica para actualizar una rutina existente
-        response = await fetch(
-          `${API_BASE_URL}/planificaciones/dias/${diaPlanificadoExistente.id}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              nombre: `${diasSemana[diaSemana - 1]} - ${
-                rutinas.find((r) => r.id === rutinaId)?.nombre
-              }`,
-              diaSemana,
-              planificacionId,
-              rutinaId,
-            }),
-          }
+        // MODIFICADO: Usar apiClient para actualizar
+        await apiClient.put(
+          `/planificaciones/dias/${diaPlanificadoExistente.id}`,
+          body
         );
       } else {
-        // Lógica para crear una nueva asignación de rutina
-        response = await fetch(`${API_BASE_URL}/planificaciones/dias`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            nombre: `${diasSemana[diaSemana - 1]} - ${
-              rutinas.find((r) => r.id === rutinaId)?.nombre
-            }`,
-            diaSemana,
-            planificacionId,
-            rutinaId,
-          }),
-        });
+        // MODIFICADO: Usar apiClient para crear
+        await apiClient.post('/planificaciones/dias', body);
       }
-
-      if (response.ok) {
-        onPlanificacionChange();
-      } else {
-        throw new Error('Error al asignar o actualizar la rutina.');
-      }
+      onPlanificacionChange();
     } catch (error) {
-      console.error('Error assigning/updating routine:', error);
-      alert('Error al asignar o actualizar la rutina.');
+      if ((error as any).response?.status !== 401) {
+        console.error('Error assigning/updating routine:', error);
+        alert('Error al asignar o actualizar la rutina.');
+      }
     }
   };
 
@@ -176,11 +144,9 @@ export default function WeeklyPlanner({
                     const diaPlanificado = planificacion.dias.find(
                       (d) => d.diaSemana === diaNumero
                     );
-
                     return (
                       <div key={dia} className="bg-gray-800 p-4 rounded-lg">
                         <h4 className="font-semibold mb-3">{dia}</h4>
-                        {/* Aquí se muestra el selector de rutinas */}
                         <select
                           onChange={(e) =>
                             handleAsignarRutina(
@@ -215,6 +181,7 @@ export default function WeeklyPlanner({
   );
 }
 
+// El componente PlanificacionForm no hace llamadas a la API, así que se queda igual.
 function PlanificacionForm({
   onCancel,
   onSubmit,
@@ -224,7 +191,6 @@ function PlanificacionForm({
 }) {
   const [nombre, setNombre] = useState('');
   const [numero, setNumero] = useState(1);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 p-6 rounded-lg w-full max-w-sm">

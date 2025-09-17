@@ -42,3 +42,9 @@ export interface PlanificacionSemanal {
   dias: DiaPlanificado[];
   activa: boolean;
 }
+
+export interface User {
+  id: number;
+  nombre: string;
+  email: string;
+}
