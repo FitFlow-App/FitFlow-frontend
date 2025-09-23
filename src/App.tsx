@@ -1,16 +1,16 @@
-import { JSX, useState } from 'react';
+import { useState, useEffect, useCallback, JSX } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import DashboardLayout from './components/DashboardLayout';
-
-// Importa TODOS los componentes de las páginas del dashboard
 import CalendarView from './components/CalendarView';
 import DashboardPage from './components/DashboardPage';
 import ExerciseListPage from './components/ExerciseListPage';
 import WeeklyPlanner from './components/WeeklyPlanner';
 import ProfilePage from './components/ProfilePage';
 import PwaPrompt from './components/PwaPrompt';
+import type { PlanificacionSemanal } from './types';
+import apiClient from './api/axiosConfig';
 
 function ProtectedRoute({
   token,
@@ -30,11 +30,39 @@ export default function App() {
     localStorage.getItem('authToken')
   );
   const navigate = useNavigate();
-
-  // Obtenemos el userId de forma segura desde localStorage
   const userId = localStorage.getItem('userId')
-    ? parseInt(localStorage.getItem('userId')!)
+    ? parseInt(localStorage.getItem('userId')!, 10)
     : null;
+
+  const [planificaciones, setPlanificaciones] = useState<
+    PlanificacionSemanal[]
+  >([]);
+  const [isLoadingPlanificaciones, setIsLoadingPlanificaciones] =
+    useState(true);
+
+  const fetchPlanificaciones = useCallback(async () => {
+    if (!userId) {
+      setIsLoadingPlanificaciones(false);
+      return;
+    }
+    setIsLoadingPlanificaciones(true);
+    try {
+      const response = await apiClient.get(
+        `/planificaciones/usuario/${userId}`
+      );
+      setPlanificaciones(response.data as PlanificacionSemanal[]);
+    } catch (error) {
+      console.error('Error al cargar planificaciones en App.tsx', error);
+    } finally {
+      setIsLoadingPlanificaciones(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (token && userId) {
+      fetchPlanificaciones();
+    }
+  }, [token, userId, fetchPlanificaciones]);
 
   const handleLoginSuccess = (newToken: string) => {
     localStorage.setItem('authToken', newToken);
@@ -46,6 +74,7 @@ export default function App() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userId');
     setToken(null);
+    setPlanificaciones([]);
     navigate('/login');
   };
 
@@ -53,25 +82,25 @@ export default function App() {
     <>
       <PwaPrompt />
       <Routes>
-        {/* Rutas Públicas */}
         <Route
           path="/login"
           element={<LoginPage onLoginSuccess={handleLoginSuccess} />}
         />
         <Route path="/register" element={<RegisterPage />} />
-
-        {/* Rutas Protegidas */}
         <Route
           path="/dashboard/*"
           element={
             <ProtectedRoute token={token}>
               <DashboardLayout onLogout={handleLogout}>
-                {/* --- RUTAS AÑADIDAS DENTRO DEL DASHBOARD --- */}
-                {/* Esto le dice a la aplicación qué componente mostrar según la URL */}
                 <Routes>
                   <Route
                     path="calendar"
-                    element={<CalendarView planificaciones={[]} />}
+                    element={
+                      <CalendarView
+                        planificaciones={planificaciones}
+                        isLoading={isLoadingPlanificaciones}
+                      />
+                    }
                   />
                   <Route
                     path="routines"
@@ -84,19 +113,16 @@ export default function App() {
                   <Route
                     path="planner"
                     element={
-                      // Se pasa el userId real en lugar de 0
                       <WeeklyPlanner
-                        token={token!}
                         userId={userId!}
-                        planificaciones={[]}
-                        onPlanificacionChange={() => {}}
+                        planificaciones={planificaciones}
+                        onDataChange={fetchPlanificaciones}
                       />
                     }
                   />
                   <Route
                     path="profile"
                     element={
-                      // Se pasa el userId real en lugar de 0
                       <ProfilePage
                         token={token!}
                         userId={userId!}
@@ -104,15 +130,12 @@ export default function App() {
                       />
                     }
                   />
-                  {/* Ruta por defecto dentro del dashboard: redirige a /dashboard/calendar */}
                   <Route index element={<Navigate to="calendar" replace />} />
                 </Routes>
               </DashboardLayout>
             </ProtectedRoute>
           }
         />
-
-        {/* Redirección por defecto */}
         <Route
           path="*"
           element={<Navigate to={token ? '/dashboard' : '/login'} replace />}

@@ -1,7 +1,5 @@
-// src/components/CalendarView.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { DiaPlanificado, PlanificacionSemanal } from '../types';
-
 import {
   fetchWeather,
   getCurrentLocation,
@@ -10,21 +8,19 @@ import {
 
 interface CalendarViewProps {
   planificaciones: PlanificacionSemanal[];
+  isLoading: boolean;
 }
 
-// Función para obtener un ícono (emoji) según el weathercode
-const getWeatherIcon = (code: number): string => {
-  if (code === 0) return '☀️'; // Despejado
-  if (code >= 1 && code <= 3) return '⛅️'; // Parcialmente nublado
-  if (code >= 45 && code <= 48) return '🌫️'; // Niebla
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️'; // Lluvia
-  if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return '❄️'; // Nieve
-  if (code >= 95) return '⛈️'; // Tormenta
-  return '🌍'; // Por defecto
-};
-
-// Componente para mostrar el clima
 const WeatherDisplay = ({ weather }: { weather: WeatherData }) => {
+  const getWeatherIcon = (code: number): string => {
+    if (code === 0) return '☀️';
+    if (code >= 1 && code <= 3) return '⛅️';
+    if (code >= 45 && code <= 48) return '🌫️';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️';
+    if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return '❄️';
+    if (code >= 95) return '⛈️';
+    return '🌍';
+  };
   return (
     <div className="flex items-center space-x-4 bg-gray-700 p-4 rounded-lg mb-4">
       <div className="text-5xl">{getWeatherIcon(weather.weathercode)}</div>
@@ -45,7 +41,7 @@ const WeatherDisplay = ({ weather }: { weather: WeatherData }) => {
     </div>
   );
 };
-// Componente para el tooltip cerca del cursor
+
 const HoverTooltip = ({
   dia,
   position,
@@ -54,7 +50,6 @@ const HoverTooltip = ({
   position: { top: number; left: number };
 }) => {
   if (!dia) return null;
-
   return (
     <div
       style={{
@@ -68,7 +63,7 @@ const HoverTooltip = ({
       <ul className="text-xs space-y-1">
         {dia.rutina.ejercicios.slice(0, 3).map((ejercicio, index) => (
           <li key={index} className="truncate">
-            {`${ejercicio.ejercicio.nombre}  `}
+            {`${ejercicio.ejercicio.nombre} `}
             {ejercicio.series}x{ejercicio.repeticiones}
             {ejercicio.peso && ` @ ${ejercicio.peso}kg`}
           </li>
@@ -81,7 +76,6 @@ const HoverTooltip = ({
   );
 };
 
-// Componente para mostrar los detalles de la rutina
 const RutinaDetalles = ({ dia }: { dia: DiaPlanificado }) => {
   const diasSemanaNombres = [
     'Domingo',
@@ -93,7 +87,6 @@ const RutinaDetalles = ({ dia }: { dia: DiaPlanificado }) => {
     'Sábado',
   ];
   const diaNombre = diasSemanaNombres[dia.diaSemana === 7 ? 0 : dia.diaSemana];
-
   return (
     <div className="mt-4 p-4 bg-gray-700 rounded-lg">
       <h3 className="text-xl font-semibold mb-2">
@@ -117,7 +110,10 @@ const RutinaDetalles = ({ dia }: { dia: DiaPlanificado }) => {
   );
 };
 
-export default function CalendarView({ planificaciones }: CalendarViewProps) {
+export default function CalendarView({
+  planificaciones,
+  isLoading,
+}: CalendarViewProps) {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date());
   const [diaSeleccionado, setDiaSeleccionado] = useState<DiaPlanificado | null>(
     null
@@ -128,7 +124,6 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
 
-  // useEffect para cargar el clima al montar el componente
   useEffect(() => {
     const loadWeather = async () => {
       try {
@@ -136,61 +131,56 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
         const weatherData = await fetchWeather(latitude, longitude, new Date());
         setWeather(weatherData);
       } catch (error) {
-        if (error instanceof Error) {
-          setWeatherError(error.message);
-        } else {
-          setWeatherError('Ocurrió un error desconocido al obtener el clima.');
-        }
+        setWeatherError(
+          error instanceof Error ? error.message : 'Error desconocido de clima.'
+        );
       }
     };
-
     loadWeather();
   }, []);
 
-  // const diasSemanaNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const diasSemanaCorta = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const obtenerDiaPlanificado = useCallback(
+    (fecha: Date): DiaPlanificado | undefined => {
+      const sortedPlanificaciones = [...planificaciones].sort(
+        (a, b) => a.numero - b.numero
+      );
+      const diaDelMes = fecha.getDate();
+      const numeroSemana = Math.ceil(diaDelMes / 7);
+      const diaSemana = fecha.getDay() === 0 ? 7 : fecha.getDay();
 
-  const sortedPlanificaciones = [...planificaciones].sort(
-    (a, b) => a.numero - b.numero
+      const planificacion = sortedPlanificaciones.find(
+        (p) => p.numero === numeroSemana
+      );
+
+      if (planificacion) {
+        return planificacion.dias.find((d) => d.diaSemana === diaSemana);
+      }
+      return undefined;
+    },
+    [planificaciones]
   );
 
-  const obtenerDiaDeLaSemana = (fecha: Date): number => {
-    return fecha.getDay() === 0 ? 7 : fecha.getDay();
-  };
-
-  const obtenerDiaPlanificado = (fecha: Date): DiaPlanificado | undefined => {
-    const diaDelMes = fecha.getDate();
-    const numeroSemana = Math.ceil(diaDelMes / 7);
-
-    const planificacion = sortedPlanificaciones.find(
-      (p) => p.numero === numeroSemana
-    );
-
-    if (planificacion) {
-      const diaSemana = obtenerDiaDeLaSemana(fecha);
-      return planificacion.dias.find((d) => d.diaSemana === diaSemana);
-    }
-    return undefined;
-  };
-
   useEffect(() => {
-    const diaPlanificadoHoy = obtenerDiaPlanificado(new Date());
-    setRutinaHoy(diaPlanificadoHoy || null);
-  }, [planificaciones]);
+    if (planificaciones.length > 0) {
+      const diaPlanificadoHoy = obtenerDiaPlanificado(new Date());
+      setRutinaHoy(diaPlanificadoHoy || null);
+    } else {
+      setRutinaHoy(null);
+    }
+  }, [planificaciones, obtenerDiaPlanificado]);
 
   const generarSemanasDelMes = (fecha: Date): Date[][] => {
     const weeks: Date[][] = [];
     const firstDay = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
     const lastDay = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
-
     let currentWeek: Date[] = [];
     const firstDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
     for (let i = 0; i < firstDayOfWeek; i++) {
       const prevDate = new Date(firstDay);
       prevDate.setDate(prevDate.getDate() - (firstDayOfWeek - i));
       currentWeek.push(prevDate);
     }
-
     const currentDate = new Date(firstDay);
     while (currentDate <= lastDay) {
       currentWeek.push(new Date(currentDate));
@@ -200,7 +190,6 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
       }
       currentDate.setDate(currentDate.getDate() + 1);
     }
-
     if (currentWeek.length > 0) {
       const nextDate = new Date(currentWeek[currentWeek.length - 1]);
       while (currentWeek.length < 7) {
@@ -209,30 +198,24 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
       }
       weeks.push(currentWeek);
     }
-
     return weeks;
   };
 
   const semanas = generarSemanasDelMes(fechaSeleccionada);
-
+  const diasSemanaCorta = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const handlePreviousMonth = () => {
     setFechaSeleccionada(
       (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
     );
     setDiaSeleccionado(null);
   };
-
   const handleNextMonth = () => {
     setFechaSeleccionada(
       (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
     );
     setDiaSeleccionado(null);
   };
-
-  const handleDayClick = (dia: DiaPlanificado) => {
-    setDiaSeleccionado(dia);
-  };
-
+  const handleDayClick = (dia: DiaPlanificado) => setDiaSeleccionado(dia);
   const handleDayHover = (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
     dia: DiaPlanificado
@@ -240,16 +223,19 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
     setTooltipPosition({ top: e.clientY, left: e.clientX });
     setHoveredDia(dia);
   };
+  const handleDayLeave = () => setHoveredDia(null);
 
-  const handleDayLeave = () => {
-    setHoveredDia(null);
-  };
+  if (isLoading) {
+    return (
+      <div className="text-center p-8 bg-gray-800 rounded-lg">
+        Cargando calendario...
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg">
       <h2 className="text-2xl font-bold mb-4">Calendario de Entrenamiento</h2>
-
-      {/* SECCIÓN DEL CLIMA */}
       {weather && <WeatherDisplay weather={weather} />}
       {weatherError && (
         <div className="bg-red-800 text-white p-3 rounded-lg text-center mb-4">
@@ -257,7 +243,7 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
         </div>
       )}
 
-      {planificaciones.length > 0 && (
+      {planificaciones.length > 0 ? (
         <div className="mb-6">
           {rutinaHoy ? (
             <div className="bg-indigo-700 text-white p-4 rounded-lg text-center mb-4">
@@ -274,12 +260,19 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
           )}
           {rutinaHoy && <RutinaDetalles dia={rutinaHoy} />}
         </div>
+      ) : (
+        <div className="bg-gray-700 text-gray-300 p-4 rounded-lg text-center mb-4">
+          <p>
+            Crea una planificación en la pestaña "Planificador" para ver tus
+            rutinas aquí.
+          </p>
+        </div>
       )}
 
       <div className="flex justify-between items-center mb-4">
         <button
           onClick={handlePreviousMonth}
-          className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+          className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -304,7 +297,7 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
         </span>
         <button
           onClick={handleNextMonth}
-          className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white"
+          className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -325,7 +318,10 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
 
       <div className="grid grid-cols-7 gap-2 mb-4">
         {diasSemanaCorta.map((dia) => (
-          <div key={dia} className="text-center font-semibold p-2">
+          <div
+            key={dia}
+            className="text-center font-semibold p-2 text-gray-400"
+          >
             {dia}
           </div>
         ))}
@@ -338,7 +334,10 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
             const esHoy = fecha.toDateString() === new Date().toDateString();
             const esMesActual =
               fecha.getMonth() === fechaSeleccionada.getMonth();
-
+            const esSeleccionado =
+              diaSeleccionado &&
+              diaPlanificado &&
+              diaSeleccionado.id === diaPlanificado.id;
             return (
               <div
                 key={diaIndex}
@@ -347,15 +346,17 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
                   diaPlanificado && handleDayHover(e, diaPlanificado)
                 }
                 onMouseLeave={handleDayLeave}
-                className={`p-2 rounded text-center cursor-pointer h-28 flex flex-col justify-center items-center relative ${
-                  esHoy
-                    ? 'bg-indigo-600'
+                className={`p-2 rounded-lg text-center h-28 flex flex-col justify-center items-center relative transition-all duration-200 ${
+                  !esMesActual
+                    ? 'bg-gray-700/50 text-gray-500'
+                    : esHoy
+                    ? 'bg-indigo-600 text-white font-bold'
+                    : esSeleccionado
+                    ? 'bg-green-700 ring-2 ring-green-400'
                     : diaPlanificado
-                    ? 'bg-green-600'
-                    : esMesActual
-                    ? 'bg-gray-700'
-                    : 'bg-gray-600'
-                } ${!esMesActual ? 'text-gray-400' : 'text-white'}`}
+                    ? 'bg-green-600/50 hover:bg-green-600'
+                    : 'bg-gray-700 hover:bg-gray-600'
+                } ${diaPlanificado ? 'cursor-pointer' : 'cursor-default'}`}
               >
                 <div className="text-xl font-bold">{fecha.getDate()}</div>
                 {diaPlanificado && (
@@ -368,7 +369,6 @@ export default function CalendarView({ planificaciones }: CalendarViewProps) {
           })}
         </div>
       ))}
-
       {hoveredDia && (
         <HoverTooltip dia={hoveredDia} position={tooltipPosition} />
       )}

@@ -1,56 +1,98 @@
-// src/components/WeeklyPlanner.tsx
 import { useState, useEffect } from 'react';
 import type { PlanificacionSemanal, Rutina } from '../types';
-import apiClient from '../api/axiosConfig'; // 1. IMPORTAR apiClient
+import apiClient from '../api/axiosConfig';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface WeeklyPlannerProps {
-  token: string;
   userId: number;
   planificaciones: PlanificacionSemanal[];
-  onPlanificacionChange: () => void;
+  onDataChange: () => void;
 }
 
+const getSemanasDelMes = () => {
+  const hoy = new Date();
+  const primerDiaDelMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const ultimoDiaDelMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+  const semanas = [];
+  let fechaInicioSemana = new Date(primerDiaDelMes);
+  const diaDeSemana = fechaInicioSemana.getDay();
+  const ajuste = diaDeSemana === 0 ? 6 : diaDeSemana - 1;
+  fechaInicioSemana.setDate(fechaInicioSemana.getDate() - ajuste);
+  let numeroSemana = 1;
+  while (fechaInicioSemana <= ultimoDiaDelMes) {
+    const fechaFinSemana = new Date(fechaInicioSemana);
+    fechaFinSemana.setDate(fechaInicioSemana.getDate() + 6);
+    if (
+      fechaFinSemana.getMonth() === hoy.getMonth() ||
+      fechaInicioSemana.getMonth() === hoy.getMonth()
+    ) {
+      semanas.push({
+        numero: numeroSemana,
+        rangoFechas: `${fechaInicioSemana.getDate()} - ${fechaFinSemana.getDate()} de ${hoy.toLocaleString(
+          'es-ES',
+          { month: 'long' }
+        )}`,
+      });
+    }
+    fechaInicioSemana.setDate(fechaInicioSemana.getDate() + 7);
+    numeroSemana++;
+  }
+  return semanas;
+};
+
 export default function WeeklyPlanner({
-  token,
   userId,
   planificaciones,
-  onPlanificacionChange,
+  onDataChange,
 }: WeeklyPlannerProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const [rutinas, setRutinas] = useState<Rutina[]>([]);
-  const [isLoadingRutinas, setIsLoadingRutinas] = useState(true);
-  const [showPlanificacionForm, setShowPlanificacionForm] = useState(false);
+  const semanasDelMes = getSemanasDelMes();
 
   useEffect(() => {
     const fetchRutinas = async () => {
+      setIsLoading(true);
       try {
-        setIsLoadingRutinas(true);
-        // MODIFICADO: Usar apiClient
         const response = await apiClient.get('/routines');
         setRutinas(response.data as Rutina[]);
       } catch (error) {
-        if ((error as any).response?.status !== 401) {
-          console.error('Error fetching rutinas:', error);
-        }
+        console.error('Error fetching rutinas:', error);
       } finally {
-        setIsLoadingRutinas(false);
+        setIsLoading(false);
       }
     };
     fetchRutinas();
   }, []);
 
-  const handleCrearPlanificacion = async (nombre: string, numero: number) => {
+  const handleCrearPlanificacion = async (
+    numeroSemana: number,
+    rangoFechas: string
+  ) => {
     try {
-      // MODIFICADO: Usar apiClient
       await apiClient.post('/planificaciones', {
-        nombre,
-        numero,
+        nombre: `Semana ${numeroSemana} (${rangoFechas.split(' de ')[0]})`,
+        numero: numeroSemana,
         usuarioId: userId,
       });
-      setShowPlanificacionForm(false);
-      onPlanificacionChange();
+      onDataChange();
     } catch (error) {
-      if ((error as any).response?.status !== 401) {
-        console.error('Error creating planificación:', error);
+      console.error('Error creando planificación:', error);
+      alert('Error al crear la planificación.');
+    }
+  };
+
+  const handleEliminarPlanificacion = async (planificacionId: number) => {
+    if (
+      window.confirm(
+        '¿Estás seguro de que quieres eliminar esta planificación semanal?'
+      )
+    ) {
+      try {
+        await apiClient.delete(`/planificaciones/${planificacionId}`);
+        onDataChange();
+      } catch (error) {
+        console.error('Error eliminando planificación:', error);
+        alert('Error al eliminar la planificación.');
       }
     }
   };
@@ -61,6 +103,15 @@ export default function WeeklyPlanner({
     rutinaId: number
   ) => {
     try {
+      const diasSemanaNombres = [
+        'Lunes',
+        'Martes',
+        'Miércoles',
+        'Jueves',
+        'Viernes',
+        'Sábado',
+        'Domingo',
+      ];
       const planificacion = planificaciones.find(
         (p) => p.id === planificacionId
       );
@@ -69,32 +120,28 @@ export default function WeeklyPlanner({
       );
       const rutinaNombre = rutinas.find((r) => r.id === rutinaId)?.nombre || '';
       const body = {
-        nombre: `${diasSemana[diaSemana - 1]} - ${rutinaNombre}`,
+        nombre: `${diasSemanaNombres[diaSemana - 1]} - ${rutinaNombre}`,
         diaSemana,
         planificacionId,
         rutinaId,
       };
 
       if (diaPlanificadoExistente) {
-        // MODIFICADO: Usar apiClient para actualizar
         await apiClient.put(
           `/planificaciones/dias/${diaPlanificadoExistente.id}`,
           body
         );
       } else {
-        // MODIFICADO: Usar apiClient para crear
         await apiClient.post('/planificaciones/dias', body);
       }
-      onPlanificacionChange();
+      onDataChange();
     } catch (error) {
-      if ((error as any).response?.status !== 401) {
-        console.error('Error assigning/updating routine:', error);
-        alert('Error al asignar o actualizar la rutina.');
-      }
+      console.error('Error asignando rutina:', error);
+      alert('Error al asignar la rutina.');
     }
   };
 
-  const diasSemana = [
+  const diasSemanaNombres = [
     'Lunes',
     'Martes',
     'Miércoles',
@@ -104,53 +151,62 @@ export default function WeeklyPlanner({
     'Domingo',
   ];
 
-  if (isLoadingRutinas)
-    return <div className="text-center p-8">Cargando rutinas...</div>;
+  if (isLoading) return <div className="text-center p-8">Cargando...</div>;
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-y-4">
-        <h2 className="text-2xl font-bold">Planificador Semanal</h2>
-        <button
-          onClick={() => setShowPlanificacionForm(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 w-full sm:w-auto"
-        >
-          Nueva Planificación
-        </button>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">
+          Planificador de{' '}
+          {new Date().toLocaleString('es-ES', { month: 'long' })}
+        </h2>
       </div>
-
-      {showPlanificacionForm && (
-        <PlanificacionForm
-          onCancel={() => setShowPlanificacionForm(false)}
-          onSubmit={handleCrearPlanificacion}
-        />
-      )}
-
-      {planificaciones.length > 0 ? (
-        <div className="space-y-8">
-          {planificaciones
-            .sort((a, b) => a.numero - b.numero)
-            .map((planificacion) => (
+      <div className="space-y-8">
+        {semanasDelMes.map((semana) => {
+          const planificacionExistente = planificaciones.find(
+            (p) => p.numero === semana.numero
+          );
+          if (planificacionExistente) {
+            return (
               <div
-                key={planificacion.id}
+                key={planificacionExistente.id}
                 className="p-4 bg-gray-700 rounded-lg"
               >
-                <h3 className="text-xl font-bold mb-4">
-                  {planificacion.nombre}
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {planificacionExistente.nombre}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      {semana.rangoFechas}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleEliminarPlanificacion(planificacionExistente.id)
+                    }
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-full"
+                    title="Eliminar Planificación"
+                  >
+                    <TrashIcon className="h-6 w-6" />
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                  {diasSemana.map((dia, index) => {
+                  {diasSemanaNombres.map((diaNombre, index) => {
                     const diaNumero = index + 1;
-                    const diaPlanificado = planificacion.dias.find(
+                    const diaPlanificado = planificacionExistente.dias.find(
                       (d) => d.diaSemana === diaNumero
                     );
                     return (
-                      <div key={dia} className="bg-gray-800 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-3">{dia}</h4>
+                      <div
+                        key={diaNombre}
+                        className="bg-gray-800 p-4 rounded-lg"
+                      >
+                        <h4 className="font-semibold mb-3">{diaNombre}</h4>
                         <select
                           onChange={(e) =>
                             handleAsignarRutina(
-                              planificacion.id,
+                              planificacionExistente.id,
                               diaNumero,
                               parseInt(e.target.value)
                             )
@@ -170,65 +226,31 @@ export default function WeeklyPlanner({
                   })}
                 </div>
               </div>
-            ))}
-        </div>
-      ) : (
-        <div className="text-center p-8 text-gray-400">
-          Aún no tienes planificaciones. ¡Crea una para empezar!
-        </div>
-      )}
-    </div>
-  );
-}
-
-// El componente PlanificacionForm no hace llamadas a la API, así que se queda igual.
-function PlanificacionForm({
-  onCancel,
-  onSubmit,
-}: {
-  onCancel: () => void;
-  onSubmit: (nombre: string, numero: number) => void;
-}) {
-  const [nombre, setNombre] = useState('');
-  const [numero, setNumero] = useState(1);
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 p-6 rounded-lg w-full max-w-sm">
-        <h3 className="text-xl font-bold mb-4">Nueva Planificación</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm mb-1">Nombre</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Número de semana</label>
-            <input
-              type="number"
-              value={numero}
-              onChange={(e) => setNumero(parseInt(e.target.value))}
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-3">
-            <button
-              onClick={onCancel}
-              className="bg-gray-600 px-4 py-2 rounded hover:bg-gray-500"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => onSubmit(nombre, numero)}
-              className="bg-indigo-600 px-4 py-2 rounded hover:bg-indigo-700"
-            >
-              Crear
-            </button>
-          </div>
-        </div>
+            );
+          } else {
+            return (
+              <div
+                key={semana.numero}
+                className="p-4 bg-gray-700/50 rounded-lg flex items-center justify-between"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-400">
+                    Semana {semana.numero}
+                  </h3>
+                  <p className="text-sm text-gray-500">{semana.rangoFechas}</p>
+                </div>
+                <button
+                  onClick={() =>
+                    handleCrearPlanificacion(semana.numero, semana.rangoFechas)
+                  }
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                >
+                  + Crear Planificación
+                </button>
+              </div>
+            );
+          }
+        })}
       </div>
     </div>
   );
